@@ -1,4 +1,8 @@
-name: Deploy Flask App to Azure Web App - mojaplikacja84
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
+
+name: Build and deploy Python app to Azure Web App - mojaplikacja84
 
 on:
   push:
@@ -7,37 +11,71 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      contents: read
-
+      contents: read #This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python version
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
+      - name: Create and start virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+      
       - name: Install dependencies
         run: pip install -r requirements.txt
+        
+      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
-        run: zip -r release.zip app.py requirements.txt static/ templates/
+        run: zip release.zip ./* -r
 
+      - name: Upload artifact for deployment jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-app
+          path: |
+            release.zip
+            !venv/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: python-app
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_01F37DC921D843BD8304F2F7DEB18BCC }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_09C9036B167D470EA901BBD0EC21D960 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BE24A99C7D4A4667BEF448BFB62D8431 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0FF9D2C25384FAA85D5269C50B76723 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_ECDE4B9086AE432B9D68182B9CAC8162 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_003AD01A414145B5A2E25102FB1ECB69 }}
 
-      - name: Deploy to Azure Web App
+      - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
+        id: deploy-to-webapp
         with:
           app-name: 'mojaplikacja84'
           slot-name: 'Production'
-          package: release.zip
+          
